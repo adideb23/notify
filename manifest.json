@@ -1,6 +1,6 @@
 {
   "name": "Notification Sender",
-  "short_name": "Sender",
+  "short_name": "Notify",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#f8f9fa",
@@ -8,12 +8,12 @@
   "description": "Professional Rent Notification System",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/5968/5968534.png",
+      "src": "icon-ns.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/5968/5968534.png",
+      "src": "icon-ns.png",
       "sizes": "512x512",
       "type": "image/png"
     }
