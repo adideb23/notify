@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notification Sender - Pro Sync</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1a73e8">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore-compat.js"></script>
+    <style>
+        :root {
+            --primary: #1a73e8;
+            --wa-green: #25D366;
+            --bg-color: #f8f9fa;
+            --card-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        body { 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+            background: var(--bg-color); 
+            margin: 0; 
+            padding: 15px; 
+            color: #202124;
+        }
+
+        .container { 
+            max-width: 480px; 
+            margin: auto; 
+            background: white; 
+            padding: 24px; 
+            border-radius: 20px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08); 
+        }
+
+        h2 { 
+            text-align: center; 
+            color: var(--primary); 
+            margin-bottom: 8px; 
+            font-weight: 800; 
+            letter-spacing: -0.5px;
+        }
+        
+        .subtitle { 
+            text-align: center; 
+            font-size: 13px; 
+            color: #5f6368; 
+            margin-bottom: 24px; 
+            font-weight: 600; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .live-dot { 
+            height: 8px; 
+            width: 8px; 
+            border-radius: 50%; 
+            display: inline-block; 
+        }
+        .status-online { background-color: #1e7e34; }
+        .status-offline { background-color: #d93025; }
+
+        .pulse { animation: pulse-animation 1.8s infinite; }
+        @keyframes pulse-animation { 
+            0% { transform: scale(0.9); opacity: 1; } 
+            50% { transform: scale(1.2); opacity: 0.6; } 
+            100% { transform: scale(0.9); opacity: 1; } 
+        }
+
+        .tenant-card { 
+            background: #fff; 
+            border: 1px solid #f1f3f4; 
+            padding: 18px; 
+            border-radius: 16px; 
+            margin-bottom: 14px; 
+            position: relative; 
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: var(--card-shadow);
+        }
+
+        .tenant-card:active { transform: scale(0.98); }
+
+        .info b { font-size: 17px; color: #202124; display: block; margin-bottom: 4px; }
+        .mobile-num { font-size: 13px; color: var(--primary); font-weight: 700; display: block; margin-bottom: 10px; }
+        .details { font-size: 13px; color: #5f6368; font-weight: 500; }
+        
+        .sync-label { 
+            position: absolute; 
+            top: 18px; 
+            right: 18px; 
+            font-size: 10px; 
+            font-weight: 800; 
+            color: #1e7e34; 
+            background: #e6f4ea;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        .btn-group { display: flex; gap: 10px; margin-top: 16px; }
+        .btn { 
+            flex: 1; 
+            padding: 12px; 
+            border: none; 
+            border-radius: 10px; 
+            font-weight: 700; 
+            cursor: pointer; 
+            text-align: center; 
+            font-size: 14px; 
+            color: white; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: 0.2s;
+        }
+        .btn-wa { background: var(--wa-green); } 
+        .btn-sms { background: var(--primary); }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        /* --- COMPACT PRO MODAL --- */
+        .modal-overlay { 
+            display: none; position: fixed; top:0; left:0; width:100%; height:100%; 
+            background: rgba(0,0,0,0.4); backdrop-filter: blur(5px); 
+            z-index:10000; justify-content:center; align-items:center; 
+        }
+        .modal-box { 
+            background: white; padding: 24px; border-radius: 24px; 
+            width: 80%; max-width: 280px; text-align: center; 
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2); 
+        }
+        .modal-box h3 { margin: 0 0 20px; font-size: 18px; color: #202124; font-weight: 800; }
+        .modal-options { display: flex; flex-direction: column; gap: 12px; }
+        
+        .modal-btn { 
+            background: #f1f3f4; border: none; padding: 16px; 
+            border-radius: 14px; cursor: pointer; font-weight: 700; 
+            font-size: 14px; color: #202124; transition: 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+        .modal-btn:hover { background: var(--primary); color: white; }
+        
+        .close-btn { 
+            margin-top: 20px; font-size: 11px; color: #d93025; 
+            cursor: pointer; font-weight: 900; text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #loading { text-align: center; padding: 40px; color: #5f6368; font-weight: 600; font-size: 14px; }
+    </style>
+</head>
+<body onload="initApp()">
+
+<div class="container">
+    <h2>Notification Sender</h2>
+    <div class="subtitle" id="syncStatus">
+        <span class="live-dot status-online pulse"></span> Initializing...
+    </div>
+    <div id="loading">Connecting to Secure Cloud...</div>
+    <div id="msgList"></div>
+</div>
+
+<div id="msgModal" class="modal-overlay">
+    <div class="modal-box">
+        <h3 id="modalTitle">Tenant Name</h3>
+        <div class="modal-options">
+            <button class="modal-btn" onclick="sendSelected('bill')">
+                <span>📄</span> View Receipt
+            </button>
+            <button class="modal-btn" onclick="sendSelected('reading_asm')">
+                <span>⚡</span> Meter Reading
+            </button>
+        </div>
+        <div class="close-btn" onclick="closeModal()">Close</div>
+    </div>
+</div>
+
+<script>
+    // Register Service Worker for PWA
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('PWA Service Worker Active'))
+                .catch(err => console.log('PWA Register Failed', err));
+        });
+    }
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBa0yOINCodJ4OhiK6l1PQyby72t6VGABM",
+        authDomain: "rentmastercloud.firebaseapp.com",
+        projectId: "rentmastercloud",
+        storageBucket: "rentmastercloud.firebasestorage.app",
+        messagingSenderId: "441950188457",
+        appId: "1:441950188457:web:29643fedca7df0913d8ab8"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const fs = firebase.firestore();
+
+    let currentTenant = {};
+    let currentBill = {};
+    let currentMode = ""; 
+
+    async function initApp() {
+        const msgList = document.getElementById('msgList');
+        const statusHeader = document.getElementById('syncStatus');
+
+        fs.collection("tenants").orderBy("name").onSnapshot({ includeMetadataChanges: true }, async (snap) => {
+            const isLive = !snap.metadata.fromCache;
+            msgList.innerHTML = "";
+            document.getElementById('loading').style.display = "none";
+            
+            statusHeader.innerHTML = isLive 
+                ? `<span class="live-dot status-online pulse"></span> Live Sync: <b>${snap.size}</b> Active ✅`
+                : `<span class="live-dot status-offline"></span> Working Offline ⚠️`;
+
+            for (let doc of snap.docs) {
+                const tenant = doc.data();
+                const billSnap = await fs.collection("bills").where("tenantName", "==", tenant.name).orderBy("month", "desc").limit(1).get();
+                if (!billSnap.empty) { createCard(tenant, billSnap.docs[0].data(), isLive); }
+            }
+        });
+    }
+
+    function createCard(tenant, bill, isLive) {
+        const list = document.getElementById('msgList');
+        const dueColor = bill.remaining > 0 ? '#d93025' : '#1e7e34';
+        const syncTag = isLive ? `<span class="sync-label">SYNCED</span>` : "";
+
+        const card = document.createElement('div');
+        card.className = 'tenant-card';
+        card.innerHTML = `
+            ${syncTag}
+            <div class="info">
+                <b>${tenant.name}</b>
+                <span class="mobile-num">📱 +91 ${tenant.mobile}</span>
+                <div class="details">Month: ${bill.month} | <span style="color:${dueColor}">Dues: ₹${bill.remaining}</span></div>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-wa" onclick="openMsgSelector('wa', '${tenant.name}', '${tenant.mobile}', '${bill.month}', ${bill.remaining})">WhatsApp</button>
+                <button class="btn btn-sms" onclick="openMsgSelector('sms', '${tenant.name}', '${tenant.mobile}', '${bill.month}', ${bill.remaining})">SMS</button>
+            </div>
+        `;
+        list.appendChild(card);
+    }
+
+    function openMsgSelector(mode, name, mobile, month, remaining) {
+        currentMode = mode;
+        currentTenant = { name, mobile };
+        currentBill = { month, remaining };
+        document.getElementById('modalTitle').innerText = name;
+        document.getElementById('msgModal').style.display = 'flex';
+    }
+
+    function closeModal() { document.getElementById('msgModal').style.display = 'none'; }
+
+    function sendSelected(type) {
+        const portalUrl = "https://adideb23.github.io/Khutabari";
+        let messageText = "";
+
+        if (type === 'bill') {
+            messageText = currentBill.remaining > 0 
+                ? `Hello ${currentTenant.name}, your rent for ${currentBill.month} is generated.\n\nTotal Due: ₹${currentBill.remaining}\n\nView Receipt: ${portalUrl}\n\nPlease pay soon. Thanks!`
+                : `Hello ${currentTenant.name}, your payment for ${currentBill.month} has been received. Thank you!\n\nView Receipt: ${portalUrl}`;
+        } else {
+            messageText = `নমস্কাৰ,\n\nঅনুগ্ৰহ কৰি খুটাবাৰী পৰ্টেলত আপোনাৰ বৰ্তমানৰ মিটাৰ ৰিডিংটো দাখিল কৰক।\n\n${portalUrl}/\n\nধন্যবাদ!`;
+        }
+
+        const encodedMsg = encodeURIComponent(messageText);
+        let finalUrl = (currentMode === 'wa') 
+            ? `https://wa.me/91${currentTenant.mobile}?text=${encodedMsg}`
+            : `sms:+91${currentTenant.mobile}?body=${encodedMsg}`;
+        
+        window.open(finalUrl, '_blank');
+        closeModal();
+    }
+</script>
+
+</body>
+</html>
