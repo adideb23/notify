@@ -1,6 +1,6 @@
 {
   "name": "Notification Sender",
-  "short_name": "Notify",
+  "short_name": "Notify Khutabari",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#f8f9fa",
